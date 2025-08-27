@@ -205,7 +205,7 @@ def enviar_dados_api(url, df, colunas_desejadas):
 data_atual_iso = datetime.now().isoformat() + 'Z'
 
 # URL da API de dados assistidos com data final dinâmica
-url_relatorio_api = f'https://watchtime.projetodesenvolve.online/watchtime?fromCompleted=2025-08-10T03:00:00.000Z&toCompleted={data_atual_iso}&fromUpdated=2025-08-10T03:00:00.000Z&toUpdated={data_atual_iso}&ignoreStaff=true'
+url_relatorio_api = 'https://watchtime.projetodesenvolve.online/watchtime?fromCompleted=2025-08-10T03:00:00.000Z&toCompleted={data_atual_iso}&fromUpdated=2025-08-10T03:00:00.000Z&toUpdated={data_atual_iso}&ignoreStaff=true'
 
 # URLs das APIs locais
 url_tempo_por_aluno_e_curso = 'https://progresso.pdinfinita.com.br/api/tempo_por_aluno_e_curso'
