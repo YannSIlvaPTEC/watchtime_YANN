@@ -57,14 +57,13 @@ def carregar_e_preprocessar_api(url_api):
         df = df.rename(columns=colunas_mapeadas)
 
         def hhmmss_para_segundos(tempo):
-              h, m, s = map(int, tempo.split(":"))
-              return h * 3600 + m * 60 + s
+            h, m, s = map(int, tempo.split(":"))
+            return h * 3600 + m * 60 + s
 
-        df['Tempo Assistido'] = df['Tempo Assistido'].apply(lambda x: hhmmss_para_segundos(x))  # Milissegundos para segundos
+        df['Tempo Assistido'] = df['Tempo Assistido'].apply(lambda x: hhmmss_para_segundos(x))
         df['dias_sem_acesso'] = df['Última atualização'].apply(dias_desde_ultima_atualizacao)
         
         return df
-    
     except requests.exceptions.RequestException as e:
         print(f"Erro ao obter dados da API {url_api}: {e}")
         return None
@@ -148,7 +147,6 @@ def cruzar_dados_api(df_local, dados_api_externa):
             on='Email',
             how='left'
         )
-        # Preencher colunas com valores padrão apenas se existirem no merge
         if 'registration_code' in df_cruzado.columns:
             df_cruzado['registration_code'] = df_cruzado['registration_code'].fillna('')
         if 'status' in df_cruzado.columns:
@@ -156,7 +154,7 @@ def cruzar_dados_api(df_local, dados_api_externa):
         if 'agenteDoSucesso' in df_cruzado.columns:
             df_cruzado['agenteDoSucesso'] = df_cruzado['agenteDoSucesso'].fillna('')
         else:
-            df_cruzado['agenteDoSucesso'] = ''  # Adicionar como padrão se não vier da API
+            df_cruzado['agenteDoSucesso'] = ''
         return df_cruzado
     return df_local
 
@@ -173,18 +171,20 @@ def deletar_dados_api(url):
 
 # Função para enviar dados para a API com validação de e-mails
 def enviar_dados_api(url, df, colunas_desejadas):
-    # Filtrar apenas e-mails que terminam em @pditabira.com ou @pdbomdespacho.com.br
     df_filtered = df[df['Email'].str.match(r'.*@(pditabira\.com|pdbomdespacho\.com\.br)$')]
-    
-    # Renomear 'Última atualização' de volta para 'updated_at'
     df_filtered = df_filtered.rename(columns={'Última atualização': 'updated_at'})
-    
-    # Garantir que todas as colunas desejadas existam
+
+    # Normalizar updated_at para ISO8601 UTC e criar timestamp numérico
+    df_filtered['updated_at'] = pd.to_datetime(df_filtered['updated_at'], errors='coerce').dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+    df_filtered['timestamp'] = pd.to_datetime(df_filtered['updated_at'], errors='coerce').astype('int64') // 10**9
+
     for col in colunas_desejadas:
         if col not in df_filtered.columns:
             df_filtered[col] = ''
-    
-    # Selecionar apenas as colunas desejadas
+
+    if 'timestamp' not in colunas_desejadas:
+        colunas_desejadas.append('timestamp')
+
     df_clean = df_filtered[colunas_desejadas].fillna(0)
     dados = df_clean.to_dict(orient='records')
     
@@ -205,7 +205,7 @@ def enviar_dados_api(url, df, colunas_desejadas):
 data_atual_iso = datetime.now().isoformat() + 'Z'
 
 # URL da API de dados assistidos com data final dinâmica
-url_relatorio_api = f'https://watchtime.projetodesenvolve.online/watchtime?fromCompleted=2025-08-01T03:00:00.000Z&toCompleted={data_atual_iso}&fromUpdated=2025-08-01T03:00:00.000Z&toUpdated={data_atual_iso}&ignoreStaff=true'
+url_relatorio_api = f'https://watchtime.projetodesenvolve.online/watchtime?fromCompleted=2025-09-01T03:00:00.000Z&toCompleted={data_atual_iso}&fromUpdated=2025-09-01T03:00:00.000Z&toUpdated={data_atual_iso}&ignoreStaff=true'
 
 # URLs das APIs locais
 url_tempo_por_aluno_e_curso = 'https://progresso.pdinfinita.com.br/api/tempo_por_aluno_e_curso'
@@ -223,39 +223,30 @@ headers_api_externa = {
 df_relatorio = carregar_e_preprocessar_api(url_relatorio_api)
 
 if df_relatorio is not None:
-    # Filtrar e-mails válidos logo no início
     df_relatorio = df_relatorio[df_relatorio['Email'].str.match(r'.*@(pditabira\.com|pdbomdespacho\.com\.br)$')]
     
     if not df_relatorio.empty:
-        # Processar os dados
         df_tempo_por_aluno_e_curso = processar_tempo_por_aluno_e_curso(df_relatorio)
         df_tempo_por_aluno = processar_tempo_por_aluno(df_relatorio)
         df_progresso_por_curso = calcular_progresso_por_curso(df_tempo_por_aluno_e_curso)
 
-        # Obter dados da API externa
         dados_api_externa = obter_dados_api(url_api_externa, headers=headers_api_externa)
 
-        # Cruzar os dados com a API externa
         df_tempo_por_aluno_e_curso = cruzar_dados_api(df_tempo_por_aluno_e_curso, dados_api_externa)
         df_tempo_por_aluno = cruzar_dados_api(df_tempo_por_aluno, dados_api_externa)
         df_progresso_por_curso = cruzar_dados_api(df_progresso_por_curso, dados_api_externa)
 
-        # Remover colunas desnecessárias apenas onde não precisamos de dias_sem_acesso
         df_tempo_por_aluno_e_curso = df_tempo_por_aluno_e_curso.drop(columns=['dias_sem_acesso'])
-        # Manter dias_sem_acesso em df_tempo_por_aluno
         df_progresso_por_curso = df_progresso_por_curso.drop(columns=['dias_sem_acesso'])
 
-        # Definir colunas desejadas para cada endpoint
         colunas_tempo_por_aluno_e_curso = ['Nome Completo', 'Curso', 'Email', 'tempo_total_formatado', 'updated_at', 'registration_code', 'status', 'agenteDoSucesso']
         colunas_tempo_por_aluno = ['Nome Completo', 'Email', 'tempo_total_formatado', 'updated_at', 'dias_sem_acesso', 'registration_code', 'status', 'agenteDoSucesso']
         colunas_progresso_por_curso = ['Curso', 'Email', 'Nome Completo', 'progresso', 'registration_code', 'status', 'tempo_total_formatado', 'updated_at', 'agenteDoSucesso']
 
-        # Deletar todos os dados da API local antes de enviar novos dados
         deletar_dados_api(url_tempo_por_aluno_e_curso)
         deletar_dados_api(url_tempo_por_aluno)
         deletar_dados_api(url_progresso_por_curso)
 
-        # Enviar os novos dados para as APIs
         enviar_dados_api(url_tempo_por_aluno_e_curso, df_tempo_por_aluno_e_curso, colunas_tempo_por_aluno_e_curso)
         enviar_dados_api(url_tempo_por_aluno, df_tempo_por_aluno, colunas_tempo_por_aluno)
         enviar_dados_api(url_progresso_por_curso, df_progresso_por_curso, colunas_progresso_por_curso)
