@@ -239,9 +239,9 @@ if df_relatorio is not None:
         df_tempo_por_aluno_e_curso = df_tempo_por_aluno_e_curso.drop(columns=['dias_sem_acesso'])
         df_progresso_por_curso = df_progresso_por_curso.drop(columns=['dias_sem_acesso'])
 
-        colunas_tempo_por_aluno_e_curso = ['Nome Completo', 'Curso', 'Email', 'tempo_total_formatado', 'updated_at', 'registration_code', 'status', 'agenteDoSucesso']
-        colunas_tempo_por_aluno = ['Nome Completo', 'Email', 'tempo_total_formatado', 'updated_at', 'dias_sem_acesso', 'registration_code', 'status', 'agenteDoSucesso']
-        colunas_progresso_por_curso = ['Curso', 'Email', 'Nome Completo', 'progresso', 'registration_code', 'status', 'tempo_total_formatado', 'updated_at', 'agenteDoSucesso']
+        colunas_tempo_por_aluno_e_curso = ['Nome Completo', 'Curso', 'Email', 'tempo_total_formatado', 'updated_at', 'registration_code', 'status', 'agenteDoSucesso', 'timestamp']
+        colunas_tempo_por_aluno = ['Nome Completo', 'Email', 'tempo_total_formatado', 'updated_at', 'dias_sem_acesso', 'registration_code', 'status', 'agenteDoSucesso', 'timestamp']
+        colunas_progresso_por_curso = ['Curso', 'Email', 'Nome Completo', 'progresso', 'registration_code', 'status', 'tempo_total_formatado', 'updated_at', 'agenteDoSucesso', 'timestamp']
 
         deletar_dados_api(url_tempo_por_aluno_e_curso)
         deletar_dados_api(url_tempo_por_aluno)
